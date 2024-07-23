@@ -1,0 +1,98 @@
+# TokenInsightsX.py
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import requests
+
+class TokenInsightsX:
+    def __init__(self, api_url: str):
+        self.api_url = api_url
+        self.data = pd.DataFrame()
+
+    def fetch_token_data(self, token_address: str) -> dict:
+        """
+        Fetch data for a specific token from the blockchain.
+        """
+        url = f"{self.api_url}/token/{token_address}"
+        response = requests.get(url)
+        data = response.json()
+        return data
+
+    def fetch_transaction_data(self, token_address: str) -> pd.DataFrame:
+        """
+        Fetch transaction data for a specific token.
+        """
+        url = f"{self.api_url}/token/{token_address}/transactions"
+        response = requests.get(url)
+        transactions = response.json()['transactions']
+        df = pd.DataFrame(transactions)
+        self.data = df
+        return df
+
+    def analyze_transactions(self) -> pd.DataFrame:
+        """
+        Analyze token transactions.
+        """
+        if self.data.empty:
+            print("No transaction data available. Please fetch transaction data first.")
+            return pd.DataFrame()
+        
+        # Example analysis: Calculate transaction volume
+        self.data['value'] = self.data['value'].astype(float)
+        self.data['date'] = pd.to_datetime(self.data['timestamp'], unit='s')
+        volume = self.data.groupby(self.data['date'].dt.date)['value'].sum().reset_index()
+        volume.columns = ['Date', 'Volume']
+        return volume
+
+    def visualize_transaction_volume(self):
+        """
+        Visualize token transaction volume over time.
+        """
+        volume = self.analyze_transactions()
+        if volume.empty:
+            return
+
+        plt.figure(figsize=(12, 6))
+        sns.lineplot(data=volume, x='Date', y='Volume', marker='o')
+        plt.title('Token Transaction Volume Over Time')
+        plt.xlabel('Date')
+        plt.ylabel('Volume')
+        plt.grid(True)
+        plt.show()
+
+    def visualize_transaction_distribution(self):
+        """
+        Visualize the distribution of token transactions.
+        """
+        if self.data.empty:
+            print("No transaction data available. Please fetch transaction data first.")
+            return
+
+        plt.figure(figsize=(12, 6))
+        sns.histplot(self.data['value'], bins=50, kde=True)
+        plt.title('Distribution of Token Transaction Values')
+        plt.xlabel('Transaction Value')
+        plt.ylabel('Frequency')
+        plt.grid(True)
+        plt.show()
+
+# Example usage
+if __name__ == "__main__":
+    api_url = 'https://api.blockchain.com/v3/exchange'
+
+    token_insights = TokenInsightsX(api_url)
+    
+    # Fetch token data
+    token_address = '0xYourTokenAddressHere'
+    token_data = token_insights.fetch_token_data(token_address)
+    
+    # Fetch and analyze transaction data
+    transaction_data = token_insights.fetch_transaction_data(token_address)
+    
+    # Visualize transaction volume over time
+    token_insights.visualize_transaction_volume()
+    
+    # Visualize distribution of transaction values
+    token_insights.visualize_transaction_distribution()
